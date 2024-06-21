@@ -2,12 +2,15 @@ cmake_minimum_required(VERSION 2.8.3)
 # set project's name
 project(drt_vio)
 
-set(CMAKE_BUILD_TYPE "Release")  # Debug
+# set(CMAKE_BUILD_TYPE "Release")  # Debug
+set(CMAKE_BUILD_TYPE "Debug")  # Debug
+
 #set(CMAKE_CXX_FLAGS "-std=c++11")
 #-DEIGEN_USE_MKL_ALL")
 # eigen 3.3以上版本加-mavx -mfma
 #set(CMAKE_CXX_FLAGS_RELEASE "-O3  -g -DEIGEN_NO_DEBUG -fopenmp")
-set(CMAKE_CXX_FLAGS_RELEASE "-O3 -DEIGEN_NO_DEBUG -g")
+
+# set(CMAKE_CXX_FLAGS_RELEASE "-O3 -DEIGEN_NO_DEBUG -g")
 
 set(STD_CXX_FS stdc++fs)
 
@@ -76,10 +79,16 @@ target_link_libraries(MyVio
 
 
 add_executable(run_euroc app/main.cpp)
+add_executable(init_test app/init_test.cpp)
 #add_executable(run_euroc app/imu_aided_vp_detection2_static.cpp)
 
 
 target_link_libraries(run_euroc
+        MyVio
+        ${Pangolin_LIBRARIES}
+        -lpthread)
+
+target_link_libraries(init_test
         MyVio
         ${Pangolin_LIBRARIES}
         -lpthread)
