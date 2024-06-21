@@ -132,8 +132,12 @@ namespace DRT {
 
         for (int i = 0; i < int_frameid2_time_frameid.size() - 1; i++) {
             int j = i + 1;
-            CHECK((int_frameid2_time_frameid.at(j) - int_frameid2_time_frameid.at(i)) == imu_meas[i].sum_dt_) <<
-            int_frameid2_time_frameid.at(j) << " " << int_frameid2_time_frameid.at(i) << imu_meas[i].sum_dt_;
+            // CHECK((int_frameid2_time_frameid.at(j) - int_frameid2_time_frameid.at(i)) == imu_meas[i].sum_dt_) <<
+            // int_frameid2_time_frameid.at(j) << " " << int_frameid2_time_frameid.at(i) << " " << imu_meas[i].sum_dt_;
+
+            // 仿真数据生成的时间戳存在误差，所以判断条件改为相差很小
+            CHECK((int_frameid2_time_frameid.at(j) - int_frameid2_time_frameid.at(i)) - imu_meas[i].sum_dt_ < 0.000000001) <<
+            int_frameid2_time_frameid.at(j) << " " << int_frameid2_time_frameid.at(i) << " " << imu_meas[i].sum_dt_;
         }
 
         Eigen::Vector3d avgA;
