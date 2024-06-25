@@ -1,0 +1,87 @@
+time: 1403636579.813555 other_reason
+scale_error: nan
+pose_error: nan
+biasg_error: nan
+velo_error: nan
+gravity_error: nan nan
+v0_error: nan
+gt_vel_rot: nan nan
+time: 1403636580.313555 other_reason
+scale_error: nan
+pose_error: nan
+biasg_error: nan
+velo_error: nan
+gravity_error: nan nan
+v0_error: nan
+gt_vel_rot: nan nan
+time: 1403636580.813555 other_reason
+scale_error: nan
+pose_error: nan
+biasg_error: nan
+velo_error: nan
+gravity_error: nan nan
+v0_error: nan
+time: 1403636581.313555 good
+scale_error: 0.043815
+pose_error: 0.017725
+biasg_error: 0.446819
+velo_error: 0.041663
+gravity_error: 0.972270 0.056904
+v0_error: 0.033965
+time: 1403636581.813555 good
+scale_error: 0.067325
+pose_error: 0.023201
+biasg_error: 0.490843
+velo_error: 0.038603
+gravity_error: 0.992681 0.051655
+v0_error: 0.033162
+time: 1403636582.313555 other_reason
+scale_error: nan
+pose_error: nan
+biasg_error: nan
+velo_error: nan
+gravity_error: nan nan
+v0_error: nan
+gt_vel_rot: nan nan
+time: 1403636582.813555 good
+scale_error: 0.070101
+pose_error: 0.013806
+biasg_error: 0.581995
+velo_error: 0.043663
+gravity_error: 0.637501 0.073713
+v0_error: 0.080173
+time: 1403636583.813555 good
+scale_error: 0.028358
+pose_error: 0.032161
+biasg_error: 0.023306
+velo_error: 0.042909
+gravity_error: 0.918906 0.020470
+v0_error: 0.032720
+time: 1403636584.313555 good
+scale_error: 0.034715
+pose_error: 0.018566
+biasg_error: 0.307594
+velo_error: 0.043791
+gravity_error: 0.842494 0.027954
+v0_error: 0.077753
+time: 1403636584.813555 good
+scale_error: 0.201089
+pose_error: 0.033471
+biasg_error: 1.204553
+velo_error: 0.042446
+gravity_error: 0.762518 0.017611
+v0_error: 0.076988
+time: 1403636587.813555 good
+scale_error: 0.275211
+pose_error: 0.054058
+biasg_error: 2.193736
+velo_error: 0.071117
+gravity_error: 0.450875 0.025049
+v0_error: 0.037587
+time: 1403636588.813555 good
+scale_error: 0.216128
+pose_error: 0.067712
+biasg_error: 1.897223
+velo_error: 0.061469
+gravity_error: 1.511813 0.022125
+v0_error: 0.082166

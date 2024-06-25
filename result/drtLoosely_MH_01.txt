@@ -1,0 +1,94 @@
+time: 1403636579.813555 other_reason
+scale_error: nan
+pose_error: nan
+biasg_error: nan
+velo_error: nan
+gravity_error: nan nan
+v0_error: nan
+gt_vel_rot: nan nan
+time: 1403636580.313555 other_reason
+scale_error: nan
+pose_error: nan
+biasg_error: nan
+velo_error: nan
+gravity_error: nan nan
+v0_error: nan
+gt_vel_rot: nan nan
+time: 1403636580.813555 other_reason
+scale_error: nan
+pose_error: nan
+biasg_error: nan
+velo_error: nan
+gravity_error: nan nan
+v0_error: nan
+time: 1403636581.313555 good
+scale_error: 0.002846
+pose_error: 0.008044
+biasg_error: 0.446819
+velo_error: 0.027249
+gravity_error: 1.012434 0.056904
+v0_error: 0.032078
+time: 1403636581.813555 good
+scale_error: 0.009655
+pose_error: 0.006011
+biasg_error: 0.490843
+velo_error: 0.027780
+gravity_error: 0.968956 0.051655
+v0_error: 0.033683
+time: 1403636582.313555 other_reason
+scale_error: nan
+pose_error: nan
+biasg_error: nan
+velo_error: nan
+gravity_error: nan nan
+v0_error: nan
+gt_vel_rot: nan nan
+time: 1403636582.813555 good
+scale_error: 0.010748
+pose_error: 0.033443
+biasg_error: 0.581995
+velo_error: 0.047186
+gravity_error: 0.794976 0.073713
+v0_error: 0.040028
+time: 1403636583.813555 good
+scale_error: 0.014339
+pose_error: 0.006074
+biasg_error: 0.023306
+velo_error: 0.025648
+gravity_error: 0.789416 0.020470
+v0_error: 0.056748
+time: 1403636584.313555 good
+scale_error: 0.009756
+pose_error: 0.006948
+biasg_error: 0.307594
+velo_error: 0.029804
+gravity_error: 0.859523 0.027954
+v0_error: 0.068769
+time: 1403636584.813555 good
+scale_error: 0.089083
+pose_error: 0.017901
+biasg_error: 1.204553
+velo_error: 0.023375
+gravity_error: 0.770810 0.017611
+v0_error: 0.044988
+time: 1403636587.813555 good
+scale_error: 0.003581
+pose_error: 0.002518
+biasg_error: 2.193736
+velo_error: 0.007993
+gravity_error: 0.815166 0.025049
+v0_error: 0.009940
+time: 1403636588.813555 good
+scale_error: 0.014797
+pose_error: 0.005564
+biasg_error: 1.897223
+velo_error: 0.006764
+gravity_error: 0.832214 0.022125
+v0_error: 0.010488
+time: 1403636589.313555 good
+scale_error: 0.001596
+pose_error: 0.004370
+biasg_error: 1.339405
+velo_error: 0.014507
+gravity_error: 0.919021 0.052887
+v0_error: 0.000429
