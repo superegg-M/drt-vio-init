@@ -17,8 +17,8 @@ namespace DRT
         // solve gyroscope bias
         ticToc t_biasg;
 
-        // if(!gyroBiasEstimator())
-        //     return false;
+        if(!gyroBiasEstimator())
+            return false;
 
 
         double time_biasg = t_biasg.toc();

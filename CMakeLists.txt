@@ -80,6 +80,8 @@ target_link_libraries(MyVio
 
 add_executable(run_euroc app/main.cpp)
 add_executable(init_test app/init_test.cpp)
+add_executable(init_test1 app/init_test1.cpp)
+
 #add_executable(run_euroc app/imu_aided_vp_detection2_static.cpp)
 
 
@@ -89,6 +91,11 @@ target_link_libraries(run_euroc
         -lpthread)
 
 target_link_libraries(init_test
+        MyVio
+        ${Pangolin_LIBRARIES}
+        -lpthread)
+
+target_link_libraries(init_test1
         MyVio
         ${Pangolin_LIBRARIES}
         -lpthread)

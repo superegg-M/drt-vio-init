@@ -1,5 +1,4 @@
-#include "featureTracker/featureTracker.h"
-#include "featureTracker/parameters.h"
+#include "utils/sophus_utils.hpp"
 #include "IMU/imuPreintegrated.hpp"
 #include "initMethod/drtVioInit.h"
 #include "initMethod/drtLooselyCoupled.h"
@@ -7,158 +6,178 @@
 #include "utils/eigenUtils.hpp"
 #include "utils/ticToc.h"
 
+#include <opencv2/opencv.hpp>
+#include <opencv2/imgproc/types_c.h>
 #include <glog/logging.h>
 #include <string>
 
 using namespace std;
 using namespace cv;
-using namespace Eigen;
 
-class Simulator
+struct MotionData1
 {
-public:
-    explicit Simulator(double dt, double w = 0.5, double r = 20.) : _dt(dt), _w(w), _r(r)
-    {
-        _ba.setZero();
-        _bg.setZero();
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+    double timestamp;
+    Eigen::Matrix3d Rwb;
+    Eigen::Vector3d twb;
+    Eigen::Vector3d imu_acc;
+    Eigen::Vector3d imu_gyro;
 
-        // landmarks生成
-        double deg2rad = double(EIGEN_PI) / 180.;
-        std::uniform_real_distribution<double> r_rand(0., 5.);
-        std::uniform_real_distribution<double> z_rand(-5., 5.);
-        for (int i = 0; i < 360; ++i)
-        {
-            double angle = double(i % 360) * deg2rad;
-            double cos_ang = cos(angle);
-            double sin_ang = sin(angle);
-            // 轴向
-            for (int j = 0; j < 5; ++j)
-            {
-                double l = r + double(j);
-                //                double l = 0.5 * r + r_rand(_generator);
-                for (int k = 0; k < 10; ++k)
-                {
-                    /*
-                     * 把 p = (0, l, k), 旋转R
-                     * 其中,
-                     * R = [cos(theta) -sin(theta) 0
-                     *      sin(theta) cos(theta) 0
-                     *      0 0 1]
-                     * */
-                    landmarks[i][j][k] = {-l * cos_ang, -l * sin_ang, double(k) - 5.};
-                    //                    landmarks[i][j][k] = {-l * cos_ang, -l * sin_ang, z_rand(_generator)};
-                }
-            }
-            //            std::cout << "landmarks[i][j][k] = " << landmarks[i][0][0].transpose() << std::endl;
-        }
-    }
+    Eigen::Vector3d imu_gyro_bias;
+    Eigen::Vector3d imu_acc_bias;
 
-    void generate_data(unsigned int num_data)
-    {
-        _timestamp_buff.resize(num_data);
-        _theta_buff.resize(num_data);
-        _p_buff.resize(num_data);
-        _v_buff.resize(num_data);
-        _a_buff.resize(num_data);
-        _w_buff.resize(num_data);
-        for (unsigned int i = 0; i < num_data; ++i)
-        {
-            _timestamp_buff[i] = double(i) * _dt;
-
-            _timestamp2_idx.emplace(_timestamp_buff[i], i);
-
-            _theta_buff[i] = double(i) * _dt * _w;
-
-            _p_buff[i].x() = _r * cos(_theta_buff[i]);
-            _p_buff[i].y() = _r * sin(_theta_buff[i]);
-            _p_buff[i].z() = 0.;
-
-            _v_buff[i].x() = -_r * _w * sin(_theta_buff[i]);
-            _v_buff[i].y() = _r * _w * cos(_theta_buff[i]);
-            _v_buff[i].z() = 0.;
-
-            _a_buff[i].x() = -_r * _w * _w + _ba.x();
-            _a_buff[i].y() = 0. + _ba.y();
-            _a_buff[i].z() = 9.8 + _ba.z();
-
-            _w_buff[i].x() = 0. + _bg.x();
-            _w_buff[i].y() = 0. + _bg.y();
-            _w_buff[i].z() = _w + _bg.z();
-        }
-    }
-
-    unsigned long get_landmark_id(unsigned int i, unsigned int j, unsigned int k)
-    {
-        return i + j * 1000 + k * 10000;
-    }
-
-    Eigen::aligned_map<int, Eigen::aligned_vector<pair<int, Eigen::Matrix<double, 7, 1>>>> get_landmarks_per_pose(double theta, const Matrix<double, 3, 1> &t_wi)
-    {
-        static double rad2deg = 180. / double(EIGEN_PI);
-        Quaterniond q_wi{cos(0.5 * theta), 0., 0., sin(0.5 * theta)};
-
-        Matrix<double, 3, 1> p_i, p_c;
-        Matrix<double, 7, 1> f;
-        Eigen::aligned_map<int, Eigen::aligned_vector<pair<int, Eigen::Matrix<double, 7, 1>>>> landmarks_map;
-
-        int ang = (int(theta * rad2deg) + 360) % 360;
-        //        ang /= 5;
-        //        ang *= 5;
-        for (int i = -10; i <= 10; i += 1)
-        {
-            int index = (ang + i + 360) % 360;
-            for (int j = 0; j < 5; ++j)
-            {
-                for (int k = 0; k < 5; ++k)
-                {
-                    p_i = q_wi.inverse() * (landmarks[index][j][k] - t_wi);
-                    p_c = q_ic.inverse() * (p_i - t_ic);
-                    f << p_c.x() / p_c.z(), p_c.y() / p_c.z(), 1., p_c.x() / p_c.z(), p_c.y() / p_c.z(), 0., 0.;
-                    landmarks_map[get_landmark_id(index, j, k)].emplace_back(0, f);
-                    //                    std::cout << "p_c = " << p_c.transpose() << std::endl;
-                }
-            }
-            //            if (i == 0) {
-            //                std::cout << "p_i = " << p_i.transpose() << std::endl;
-            //            }
-        }
-
-        return landmarks_map;
-    }
-
-public:
-    vector<double> _timestamp_buff;
-    vector<double> _theta_buff;
-    vector<Matrix<double, 3, 1>> _p_buff;
-    vector<Matrix<double, 3, 1>> _v_buff;
-    vector<Matrix<double, 3, 1>> _a_buff;
-    vector<Matrix<double, 3, 1>> _w_buff;
-
-    std::map<double, int> _timestamp2_idx;
-
-public:
-    Matrix<double, 3, 1> _ba{0., 0., 0.};
-    Matrix<double, 3, 1> _bg{0., 0., 0.};
-
-public:
-    double _dt;
-    double _w;
-    double _r;
-
-public:
-    Matrix<double, 3, 1> landmarks[360][5][10];
-    std::default_random_engine _generator;
-
-public:
-    Quaterniond q_ic{cos(-0.5 * double(EIGEN_PI) * 0.5), 0., sin(-0.5 * double(EIGEN_PI) * 0.5), 0.};
-    Matrix<double, 3, 1> t_ic{0., 0., 0.};
+    Eigen::Vector3d imu_velocity;
 };
 
-int main(int argc, char **argv)
+struct FeatureData
 {
-    if (argc != 3)
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+    int feature_id;
+    double x;
+    double y;
+    double z = 1;
+    double p_u;
+    double p_v;
+    double velocity_x = 0;
+    double velocity_y = 0;
+};
+
+struct GtData {
+    double timestamp;
+    Eigen::Vector3d position;
+    Eigen::Quaterniond rotation;
+    Eigen::Vector3d velocity;
+    Eigen::Vector3d bias_gyr;
+    Eigen::Vector3d bias_acc;
+};
+
+void LoadFeature(std::string filename, std::vector<FeatureData>& feature)
+{
+
+    std::ifstream f;
+    f.open(filename.c_str());
+
+    int feature_id=0;
+
+    if(!f.is_open())
     {
-        std::cout << "Usage: code" << " code type" << " data type" << "\n";
+        std::cerr << " can't open LoadFeatures file "<<std::endl;
+        return;
+    }
+
+    while (!f.eof()) {
+
+        std::string s;
+        std::getline(f,s);
+
+
+        if(! s.empty())
+        {
+            std::stringstream ss;
+            ss << s;
+
+            FeatureData data;
+            Eigen::Vector4d point;
+            Eigen::Vector4d obs;
+
+            ss>>point[0];
+            ss>>point[1];
+            ss>>point[2];
+            ss>>point[3];
+            ss>>obs[0];
+            ss>>obs[1];
+
+            // 行号即id
+            data.feature_id=feature_id;
+            feature_id++;
+
+            data.x=obs[0];
+            data.y=obs[1];
+            data.z=1;
+            data.p_u=(obs[0]*460 + 255);
+            data.p_v=(obs[1]*460 + 255);
+            feature.push_back(data);
+
+        }
+    }
+
+}
+
+void LoadPose(std::string filename, std::vector<MotionData1>& pose, Eigen::map<double,GtData>& gt)
+{
+
+    std::ifstream f;
+    f.open(filename.c_str());
+
+    if(!f.is_open())
+    {
+        std::cerr << " can't open LoadPoses file "<<std::endl;
+        return;
+    }
+
+    while (!f.eof()) {
+
+        std::string s;
+        std::getline(f,s);
+
+        if(! s.empty())
+        {
+            std::stringstream ss;
+            ss << s;
+
+            MotionData1 data;
+            GtData gtdata;
+            double time;
+            Eigen::Quaterniond q;
+            Eigen::Vector3d t;
+            Eigen::Vector3d gyro;
+            Eigen::Vector3d acc;
+
+            ss>>time;
+            ss>>q.w();
+            ss>>q.x();
+            ss>>q.y();
+            ss>>q.z();
+            ss>>t(0);
+            ss>>t(1);
+            ss>>t(2);
+            ss>>gyro(0);
+            ss>>gyro(1);
+            ss>>gyro(2);
+            ss>>acc(0);
+            ss>>acc(1);
+            ss>>acc(2);
+
+
+            data.timestamp = time;;
+            data.imu_gyro = gyro;
+            data.imu_acc = acc;
+            data.twb = t;
+            data.Rwb = Eigen::Matrix3d(q);
+            pose.push_back(data);
+
+            gtdata.timestamp=time;
+            gtdata.position=t;
+            gtdata.rotation=q;
+            gtdata.velocity=Eigen::Vector3d::Zero();
+            gtdata.bias_acc=Eigen::Vector3d::Zero();
+            gtdata.bias_gyr=Eigen::Vector3d::Zero();
+
+            gt.emplace(time,gtdata);
+
+        }
+    }
+
+}
+
+int main(int argc, char **argv) {
+
+
+    bool use_single_ligt = false;
+    bool use_ligt_vins = false;
+
+    if (argc != 3) {
+        std::cout << "Usage: code" << " code type" << " data type"  << "\n";
         return -1;
     }
 
@@ -166,21 +185,22 @@ int main(int argc, char **argv)
     char *dataType = argv[2];
     std::ofstream save_file("../result/" + string(codeType) + "_" + string(dataType) + ".txt");
 
-    // IMU200Hz
-    double dt = 0.005;
-    unsigned int num_data = 6000 + 1;
-    static Simulator simulator(dt);
-    simulator.generate_data(num_data);
-
-    readParameters("../config/simulator.yaml");
+    readParameters("../config/simulator1.yaml");
+    PUB_THIS_FRAME = true;
     double sf = std::sqrt(double(IMU_FREQ));
 
-    for (int n = 0; n < num_data - 20 * 100; n += 20 * 10)
-    {
+    std::vector<MotionData1> cam_poses;
+    Eigen::map<double,GtData> cam_gt;
+    LoadPose("../simulator_data/cam_pose.txt",cam_poses,cam_gt);
+    std::vector<MotionData1> imu_poses;
+    Eigen::map<double,GtData> imu_gt;
+    LoadPose("../simulator_data/imu_pose_noise.txt",imu_poses,imu_gt);
 
-        // 定义初始化指针
-        DRT::drtVioInit::Ptr pDrtVioInit;
-        // 设置初始化模式和外参
+
+
+    for (int i = 0; i < cam_poses.size() - 100; i += 10) {
+
+        DRT::drtVioInit::Ptr  pDrtVioInit;
         if (string(codeType) == "drtTightly")
         {
             pDrtVioInit.reset(new DRT::drtTightlyCoupled(RIC[0], TIC[0]));
@@ -191,75 +211,79 @@ int main(int argc, char **argv)
             pDrtVioInit.reset(new DRT::drtLooselyCoupled(RIC[0], TIC[0]));
         }
 
+
         std::vector<int> idx;
 
-        // // TODO：没明白为啥4Hz
-        // // 40 4HZ, 0.25s
-        // for (int j = n; j < 100 + n; j += 1)
-        //     idx.push_back(j);
-
-        // 图像10Hz，取100帧
-        for (int j = n; j < 20 * 100 + n; j += 20)
+        // 40 4HZ, 0.25s
+        for (int j = i; j < 100 + i; j += 1)
             idx.push_back(j);
 
         double last_img_t_s, cur_img_t_s;
         bool first_img = true;
         bool init_feature = true;
 
+
         std::vector<double> idx_time;
 
-        for (int i : idx)
-        {
+        for (int i: idx) {
 
-            cur_img_t_s = simulator._timestamp_buff[i];
+            cur_img_t_s = cam_poses[i].timestamp;
 
-            Eigen::aligned_map<int, Eigen::aligned_vector<pair<int, Eigen::Matrix<double, 7, 1>>>>
-                image;
+            std::stringstream feature_filename;
+            feature_filename<<"../simulator_data/keyframe/all_points_"<<i<<".txt";
+            std::vector<FeatureData> features;
+            LoadFeature(feature_filename.str(),features);
 
-            image = simulator.get_landmarks_per_pose(simulator._theta_buff[i], simulator._p_buff[i]);
+            Eigen::aligned_map<int, Eigen::aligned_vector<pair<int, Eigen::Matrix<double, 7, 1 >> >>
+                    image;
+            for (unsigned int i = 0; i < features.size(); i++) {
+                int feature_id = features[i].feature_id;
+                int camera_id = 0;
+                double x = features[i].x;
+                double y = features[i].y;
+                double z = 1;
+                double p_u = features[i].p_u;
+                double p_v = features[i].p_v;
+                double velocity_x = 0;
+                double velocity_y = 0;
+                assert(camera_id == 0);
+                Eigen::Matrix<double, 7, 1> xyz_uv_velocity;
+                xyz_uv_velocity << x, y, z, p_u, p_v, velocity_x, velocity_y;
+                image[feature_id].emplace_back(camera_id, xyz_uv_velocity);
+            }
 
-            if (init_feature)
-            {
+            if (init_feature) {
                 init_feature = false;
                 continue;
             }
 
-            // 检查视差是否满足要求，满足则添加该帧图像
-            if (pDrtVioInit->addFeatureCheckParallax(cur_img_t_s, image, 0.0))
-            {
+            if (pDrtVioInit->addFeatureCheckParallax(cur_img_t_s, image, 0.0)) {
 
                 idx_time.push_back(cur_img_t_s);
 
                 std::cout << "add image is: " << fixed << cur_img_t_s << " image number is: " << idx_time.size()
                           << std::endl;
 
-                if (first_img)
-                {
+                if (first_img) {
                     last_img_t_s = cur_img_t_s;
                     first_img = false;
                     continue;
                 }
 
-                auto GyroData = simulator._w_buff;
-                auto AccelData = simulator._a_buff;
-
                 std::vector<MotionData> imu_segment;
 
-                for (size_t i = 0; i < GyroData.size(); i++)
-                {
-                    double timestamp = simulator._timestamp_buff[i];
+                for (size_t i = 0; i < imu_poses.size(); i++) {
+                    double timestamp = imu_poses[i].timestamp;
 
                     MotionData imu_data;
                     imu_data.timestamp = timestamp;
-                    imu_data.imu_acc = AccelData[i];
-                    imu_data.imu_gyro = GyroData[i];
+                    imu_data.imu_acc = imu_poses[i].imu_acc;
+                    imu_data.imu_gyro = imu_poses[i].imu_gyro;
 
-                    if (timestamp > last_img_t_s && timestamp <= cur_img_t_s)
-                    {
+                    if (timestamp > last_img_t_s && timestamp <= cur_img_t_s) {
                         imu_segment.push_back(imu_data);
                     }
-                    if (timestamp > cur_img_t_s)
-                    {
+                    if (timestamp > cur_img_t_s) {
                         imu_segment.push_back(imu_data);
                         break;
                     }
@@ -267,52 +291,42 @@ int main(int argc, char **argv)
 
                 vio::IMUBias bias;
                 vio::IMUCalibParam
-                    imu_calib(RIC[0], TIC[0], GYR_N * sf, ACC_N * sf, GYR_W / sf, ACC_W / sf);
+                        imu_calib(RIC[0], TIC[0], GYR_N * sf, ACC_N * sf, GYR_W / sf, ACC_W / sf);
                 vio::IMUPreintegrated imu_preint(bias, &imu_calib, last_img_t_s, cur_img_t_s);
 
                 int n = imu_segment.size() - 1;
 
-                for (int i = 0; i < n; i++)
-                {
+                for (int i = 0; i < n; i++) {
                     double dt;
                     Eigen::Vector3d gyro;
                     Eigen::Vector3d acc;
 
-                    if (i == 0 && i < (n - 1)) // [start_time, imu[0].time]
+                    if (i == 0 && i < (n - 1))               // [start_time, imu[0].time]
                     {
                         float tab = imu_segment[i + 1].timestamp - imu_segment[i].timestamp;
                         float tini = imu_segment[i].timestamp - last_img_t_s;
                         CHECK(tini >= 0);
                         acc = (imu_segment[i + 1].imu_acc + imu_segment[i].imu_acc -
-                               (imu_segment[i + 1].imu_acc - imu_segment[i].imu_acc) * (tini / tab)) *
-                              0.5f;
+                               (imu_segment[i + 1].imu_acc - imu_segment[i].imu_acc) * (tini / tab)) * 0.5f;
                         gyro = (imu_segment[i + 1].imu_gyro + imu_segment[i].imu_gyro -
-                                (imu_segment[i + 1].imu_gyro - imu_segment[i].imu_gyro) * (tini / tab)) *
-                               0.5f;
+                                (imu_segment[i + 1].imu_gyro - imu_segment[i].imu_gyro) * (tini / tab)) * 0.5f;
                         dt = imu_segment[i + 1].timestamp - last_img_t_s;
-                    }
-                    else if (i < (n - 1)) // [imu[i].time, imu[i+1].time]
+                    } else if (i < (n - 1))      // [imu[i].time, imu[i+1].time]
                     {
                         acc = (imu_segment[i].imu_acc + imu_segment[i + 1].imu_acc) * 0.5f;
                         gyro = (imu_segment[i].imu_gyro + imu_segment[i + 1].imu_gyro) * 0.5f;
                         dt = imu_segment[i + 1].timestamp - imu_segment[i].timestamp;
-                    }
-                    else if (i > 0 && i == n - 1)
-                    {
+                    } else if (i > 0 && i == n - 1) {
                         // std::cout << " n : " << i + 1 << " " << n << " " << imu_segment[i + 1].timestamp << std::endl;
                         float tab = imu_segment[i + 1].timestamp - imu_segment[i].timestamp;
                         float tend = imu_segment[i + 1].timestamp - cur_img_t_s;
                         CHECK(tend >= 0);
                         acc = (imu_segment[i].imu_acc + imu_segment[i + 1].imu_acc -
-                               (imu_segment[i + 1].imu_acc - imu_segment[i].imu_acc) * (tend / tab)) *
-                              0.5f;
+                               (imu_segment[i + 1].imu_acc - imu_segment[i].imu_acc) * (tend / tab)) * 0.5f;
                         gyro = (imu_segment[i].imu_gyro + imu_segment[i + 1].imu_gyro -
-                                (imu_segment[i + 1].imu_gyro - imu_segment[i].imu_gyro) * (tend / tab)) *
-                               0.5f;
+                                (imu_segment[i + 1].imu_gyro - imu_segment[i].imu_gyro) * (tend / tab)) * 0.5f;
                         dt = cur_img_t_s - imu_segment[i].timestamp;
-                    }
-                    else if (i == 0 && i == (n - 1))
-                    {
+                    } else if (i == 0 && i == (n - 1)) {
                         acc = imu_segment[i].imu_acc;
                         gyro = imu_segment[i].imu_gyro;
                         dt = cur_img_t_s - last_img_t_s;
@@ -326,6 +340,8 @@ int main(int argc, char **argv)
                 pDrtVioInit->addImuMeasure(imu_preint);
 
                 last_img_t_s = cur_img_t_s;
+
+
             }
 
             if (idx_time.size() >= 10) break;
@@ -369,18 +385,32 @@ int main(int argc, char **argv)
         Eigen::Vector3d avgBg;
         avgBg.setZero();
 
+        auto get_traj = [&](double timeStamp, GtData &rhs) -> bool {
+            Eigen::map<double, GtData> gt_data = cam_gt;
+
+            for (const auto &traj: gt_data) {
+                if (std::abs((traj.first - timeStamp)) < 1e-3) {
+                    rhs = traj.second;
+                    return true;
+                }
+            }
+            return false;
+        };
+
         try {
             for (auto &t: idx_time) {
-                gt_pos.emplace_back(simulator._p_buff[simulator._timestamp2_idx[t]]);
-                gt_vel.emplace_back(simulator._v_buff[simulator._timestamp2_idx[t]]);
-                Eigen::Quaterniond q_wi {cos(0.5 * simulator._theta_buff[simulator._timestamp2_idx[t]]), 0., 0., sin(0.5 * simulator._theta_buff[simulator._timestamp2_idx[t]])};
-                gt_rot.emplace_back(q_wi.toRotationMatrix());
-                gt_g_imu.emplace_back(q_wi.inverse() * G);
+                GtData rhs;
+                if (get_traj(t, rhs)) {
+                    gt_pos.emplace_back(rhs.position);
+                    gt_vel.emplace_back(rhs.velocity);
+                    gt_rot.emplace_back(rhs.rotation.toRotationMatrix());
+                    gt_g_imu.emplace_back(rhs.rotation.inverse() * G);
 
-                avgBg += simulator._bg;
-
-                std::cout << "gt geted" << std::endl;
-
+                    avgBg += rhs.bias_gyr;
+                } else {
+                    std::cout << "no gt pose,fail" << std::endl;
+                    throw -1;
+                }
             }
         } catch (...) {
             save_file << "time: " << fixed << idx_time[0] << " other_reason" << std::endl;
@@ -515,4 +545,5 @@ int main(int argc, char **argv)
         }
 
     }
+
 }
