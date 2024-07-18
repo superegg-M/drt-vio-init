@@ -113,7 +113,7 @@ public:
                 {
                     p_i = q_wi.inverse() * (landmarks[index][j][k] - t_wi);
                     p_c = q_ic.inverse() * (p_i - t_ic);
-                    f << p_c.x() / p_c.z(), p_c.y() / p_c.z(), 1., p_c.x() / p_c.z(), p_c.y() / p_c.z(), 0., 0.;
+                    f << p_c.x() / p_c.z(), p_c.y() / p_c.z(), 1., (p_c.x() / p_c.z())*460+255, (p_c.y() / p_c.z())*460+255, 0., 0.;
                     landmarks_map[get_landmark_id(index, j, k)].emplace_back(0, f);
                     //                    std::cout << "p_c = " << p_c.transpose() << std::endl;
                 }

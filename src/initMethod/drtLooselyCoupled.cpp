@@ -25,9 +25,9 @@ namespace DRT
 
         ticToc t_ligt;
         // reintegrate the imu data with solved gyroscope bias
-        // vio::IMUBias solved_bias(biasg, biasa);
+        vio::IMUBias solved_bias(biasg, biasa);
 
-        vio::IMUBias solved_bias(Eigen::Vector3d(0., 0., 0.), Eigen::Vector3d(0, 0, 0));
+        // vio::IMUBias solved_bias(Eigen::Vector3d(0., 0., 0.), Eigen::Vector3d(0, 0, 0));
 
         // LOG(INFO) << "frame number: " << int_frameid2_time_frameid.size() << " imu number: " << imu_meas.size()
         //          << std::endl;

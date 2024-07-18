@@ -192,6 +192,12 @@ int main(int argc, char **argv) {
     std::vector<MotionData1> cam_poses;
     Eigen::map<double,GtData> cam_gt;
     LoadPose("../simulator_data/cam_pose.txt",cam_poses,cam_gt);
+    for(auto &gt : cam_gt){
+        gt.second.rotation=gt.second.rotation*RIC[0].inverse();
+        gt.second.position=gt.second.position-gt.second.rotation*TIC[0];
+    }
+
+
     std::vector<MotionData1> imu_poses;
     Eigen::map<double,GtData> imu_gt;
     LoadPose("../simulator_data/imu_pose_noise.txt",imu_poses,imu_gt);
