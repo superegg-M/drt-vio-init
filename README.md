@@ -1,3 +1,9 @@
+仿真数据测试
+```
+cd build
+./init_test1 drtLoosely sim
+```
+
 
 # drt-vio-initialization
 ## Decoupled Rotation and Translation VIO initialization
